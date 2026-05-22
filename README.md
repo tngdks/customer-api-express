@@ -40,15 +40,15 @@ PUT /customers/:id
 DELETE /customers/:id
 
 How to Run Locally:
-1.Clone the repository
+1.Clone the repository=> 
    git clone https://github.com/tngdks/customer-api-express.git
-2.pen the project folder
+2.pen the project folder=>
    cd customer-api-express
-3.Install dependencies
+3.Install dependencies=>
    npm install
-4.Start the server
+4.Start the server=>
    node express-server.js
-5.Open in browser
+5.Open in browser=>
    http://localhost:3000/customers
 
    

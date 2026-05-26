@@ -1,111 +1,137 @@
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
+require("dotenv").config();
 
 const app = express();
 
 const PORT = 3000;
 
-//Middleware to read JSON body from requests
 app.use(cors());
 app.use(express.json());
 
-let customers = [
-    { id: 1, name: "devendra", email: "devendra@gmail.com"},
-    { id: 2, name: "neha", email: "neha@gmail.com"},
-];
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch((error) => console.log("MongoDB connection error:", error));
+
+const customerSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+});
+
+const Customer = mongoose.model("Customer", customerSchema);
 
 app.get("/", (req, res) => {
-    res.send("Home Page from Express");
+  res.send("Home Page from Express + MongoDB");
 });
 
-app.get("/about", (req, res) => {
-    res.send("About Page from Express");
-});
-
-//get all customers
-app.get("/customers", (req, res) => {
+// GET all customers
+app.get("/customers", async (req, res) => {
+  try {
+    const customers = await Customer.find();
     res.json(customers);
-});
-
-//POST route
-app.post("/customers", (req, res) => {
-  console.log(req.body);
-
-  const name = req.body.name;
-  const email = req.body.email;
-
-  if (!name || !email) {
-    return res.status(400).json({
-      message: "Name and email are required",
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching customers",
+      error: error.message,
     });
   }
-
-  const newCustomer = {
-    id: customers.length + 1,
-    name: name,
-    email: email,
-  };
-
-  customers.push(newCustomer);
-
-  res.status(201).json({
-    message: "Customer added successfully",
-    customer: newCustomer,
-  });
 });
 
-//DELETE route 
-app.delete("/customers/:id", (req, res) => {
-    const id = Number(req.params.id);
+// POST new customer
+app.post("/customers", async (req, res) => {
+  try {
+    const name = req.body.name;
+    const email = req.body.email;
 
-    const customerExists = customers.some((customer) => customer.id === id);
-
-    if(!customerExists) {
-        return res.status(404).json({
-            message: "Customer not found",
-        });
+    if (!name || !email) {
+      return res.status(400).json({
+        message: "Name and email are required",
+      });
     }
 
-    customers = customers.filter((customer) => customer.id !== id);
-
-    res.json({
-        message: "Customer deleted successfully",
+    const newCustomer = new Customer({
+      name: name,
+      email: email,
     });
+
+    const savedCustomer = await newCustomer.save();
+
+    res.status(201).json({
+      message: "Customer added successfully",
+      customer: savedCustomer,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error adding customer",
+      error: error.message,
+    });
+  }
 });
 
-//PUT route
-app.put("/customers/:id", (req, res) => {
-    const id = Number(req.params.id);
+// PUT update customer
+app.put("/customers/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
 
     const name = req.body.name;
     const email = req.body.email;
 
-    if(!name || !email) {
-        return res.status(400).json({
-            message: "Name and email are required",
-        });
+    if (!name || !email) {
+      return res.status(400).json({
+        message: "Name and email are required",
+      });
     }
 
-    const customerIndex = customers.findIndex((customer) => customer.id === id);
+    const updatedCustomer = await Customer.findByIdAndUpdate(
+      id,
+      { name: name, email: email },
+      { new: true }
+    );
 
-    if (customerIndex === -1) {
-        return res.status(404).json({
-            message: "Customer not found",
-        });
+    if (!updatedCustomer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
     }
-
-    customers[customerIndex] = {
-        id: id,
-        name: name,
-        email: email,
-    };
 
     res.json({
-        message: "Customer updated successfully",
-        customer: customers[customerIndex],
+      message: "Customer updated successfully",
+      customer: updatedCustomer,
     });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating customer",
+      error: error.message,
+    });
+  }
+});
+
+// DELETE customer
+app.delete("/customers/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const deletedCustomer = await Customer.findByIdAndDelete(id);
+
+    if (!deletedCustomer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json({
+      message: "Customer deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error deleting customer",
+      error: error.message,
+    });
+  }
 });
 
 app.listen(PORT, () => {
-    console.log(`Express server running on http://localhost:${PORT}`);
+  console.log(`Express server running on http://localhost:${PORT}`);
 });
